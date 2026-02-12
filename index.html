@@ -39,12 +39,13 @@
         /* Custom controls styling */
         #controls {
             position: absolute;
-            top: 10px;
-            right: 10px;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
             z-index: 1000;
             display: flex;
-            flex-direction: column;
-            gap: 8px;
+            flex-direction: row;
+            gap: 12px;
         }
 
         .control-btn {
@@ -182,8 +183,7 @@
         /* Responsive adjustments */
         @media (max-width: 768px) {
             #instructions {
-                top: auto;
-                bottom: 20px;
+                top: 10px;
                 left: 10px;
                 right: 10px;
                 transform: none;
@@ -192,8 +192,8 @@
             }
 
             #controls {
-                top: 70px;
-                right: 10px;
+                bottom: 20px;
+                gap: 10px;
             }
 
             .control-btn {
@@ -245,7 +245,7 @@
 
         // Initialize map
         const map = L.map('map', {
-            zoomControl: true,
+            zoomControl: false,
             doubleClickZoom: false
         }).setView(CONFIG.fallbackCenter, CONFIG.defaultZoom);
 
