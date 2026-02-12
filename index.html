@@ -454,18 +454,25 @@
 
         // Touch support
         map.on('touchstart', (e) => {
-            if (e.originalEvent.touches.length === 1) {
+            if (drawingMode && e.originalEvent.touches.length === 1) {
+                e.originalEvent.preventDefault();
                 startDrawing(e);
             }
         });
 
         map.on('touchmove', (e) => {
-            if (e.originalEvent.touches.length === 1) {
+            if (drawingMode && e.originalEvent.touches.length === 1) {
+                e.originalEvent.preventDefault();
                 continueDrawing(e);
             }
         });
 
-        map.on('touchend', finishDrawing);
+        map.on('touchend', (e) => {
+            if (drawingMode) {
+                e.originalEvent.preventDefault();
+                finishDrawing(e);
+            }
+        });
 
         // Button event listeners
         document.getElementById('draw-btn').addEventListener('click', toggleDrawingMode);
