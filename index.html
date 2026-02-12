@@ -318,16 +318,38 @@
             maxZoom: 19
         }).addTo(map);
 
-        // Try to get user's current location
+        // Request user's current location
         if (navigator.geolocation) {
+            // Show notification that we're requesting location
+            showNotification('Requesting your location...');
+
             navigator.geolocation.getCurrentPosition(
                 (position) => {
+                    // Success - center map on user's location
                     map.setView([position.coords.latitude, position.coords.longitude], CONFIG.defaultZoom);
+                    showNotification('Location found! Map centered on your position');
                 },
                 (error) => {
-                    console.log('Geolocation unavailable, using fallback location');
+                    // Error or denied - use fallback location
+                    let message = 'Using Stuttgart as default location';
+                    if (error.code === error.PERMISSION_DENIED) {
+                        message = 'Location access denied. Using Stuttgart, Germany';
+                    } else if (error.code === error.POSITION_UNAVAILABLE) {
+                        message = 'Location unavailable. Using Stuttgart, Germany';
+                    } else if (error.code === error.TIMEOUT) {
+                        message = 'Location request timed out. Using Stuttgart, Germany';
+                    }
+                    showNotification(message);
+                },
+                {
+                    enableHighAccuracy: false,
+                    timeout: 10000,
+                    maximumAge: 300000
                 }
             );
+        } else {
+            // Browser doesn't support geolocation
+            showNotification('Geolocation not supported. Using Stuttgart, Germany');
         }
 
         // Haversine distance calculation
