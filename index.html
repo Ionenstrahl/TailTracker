@@ -492,27 +492,33 @@
         map.on('mousemove', continueDrawing);
         map.on('mouseup', finishDrawing);
 
-        // Touch support
-        map.on('touchstart', (e) => {
-            if (drawingMode && e.originalEvent.touches.length === 1) {
-                e.originalEvent.preventDefault();
-                startDrawing(e);
-            }
-        });
+        // Direct DOM touch event listeners (bypasses Leaflet's disabled touch handlers)
+        const mapContainer = map.getContainer();
 
-        map.on('touchmove', (e) => {
-            if (drawingMode && e.originalEvent.touches.length === 1) {
-                e.originalEvent.preventDefault();
-                continueDrawing(e);
+        mapContainer.addEventListener('touchstart', (e) => {
+            if (drawingMode && e.touches.length === 1) {
+                e.preventDefault();
+                const touch = e.touches[0];
+                const point = map.containerPointToLatLng([touch.clientX, touch.clientY]);
+                startDrawing({ latlng: point });
             }
-        });
+        }, { passive: false });
 
-        map.on('touchend', (e) => {
+        mapContainer.addEventListener('touchmove', (e) => {
+            if (drawingMode && e.touches.length === 1) {
+                e.preventDefault();
+                const touch = e.touches[0];
+                const point = map.containerPointToLatLng([touch.clientX, touch.clientY]);
+                continueDrawing({ latlng: point });
+            }
+        }, { passive: false });
+
+        mapContainer.addEventListener('touchend', (e) => {
             if (drawingMode) {
-                e.originalEvent.preventDefault();
-                finishDrawing(e);
+                e.preventDefault();
+                finishDrawing();
             }
-        });
+        }, { passive: false });
 
         // Button event listeners
         document.getElementById('draw-btn').addEventListener('click', toggleDrawingMode);
