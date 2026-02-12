@@ -379,11 +379,26 @@
                 drawBtn.classList.add('active');
                 drawBtn.innerHTML = '🗺️ Navigate';
                 mapEl.classList.add('drawing-mode');
+                // Disable all map interactions for drawing
+                map.dragging.disable();
+                map.touchZoom.disable();
+                map.doubleClickZoom.disable();
+                map.scrollWheelZoom.disable();
+                map.boxZoom.disable();
+                map.keyboard.disable();
+                if (map.tap) map.tap.disable();
                 showNotification('Draw Mode: Drag to draw routes');
             } else {
                 drawBtn.classList.remove('active');
                 drawBtn.innerHTML = '✏️ Draw Mode';
                 mapEl.classList.remove('drawing-mode');
+                // Re-enable map interactions for navigation
+                map.dragging.enable();
+                map.touchZoom.enable();
+                map.scrollWheelZoom.enable();
+                map.boxZoom.enable();
+                map.keyboard.enable();
+                if (map.tap) map.tap.enable();
                 showNotification('Navigate Mode: Drag to move map');
             }
         }
@@ -402,9 +417,6 @@
                 weight: 4,
                 opacity: 0.8
             }).addTo(map);
-
-            // Disable map dragging while drawing
-            map.dragging.disable();
         }
 
         // Continue drawing
@@ -426,7 +438,6 @@
             if (!isDrawing || !currentPolyline) return;
 
             isDrawing = false;
-            map.dragging.enable();
 
             // Need at least 2 points for a valid route
             if (currentPoints.length < 2) {
