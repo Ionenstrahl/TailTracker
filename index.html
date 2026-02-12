@@ -86,6 +86,37 @@
             border-color: #45B7D1;
         }
 
+        /* Info button styling */
+        #info-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+            background: white;
+            border: 2px solid rgba(0, 0, 0, 0.2);
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            font-size: 20px;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #info-btn:hover {
+            background: #f8f9fa;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+            transform: translateY(-1px);
+        }
+
+        #info-btn:active {
+            transform: translateY(0);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+
         /* Instruction card styling */
         #instructions {
             position: absolute;
@@ -99,6 +130,7 @@
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
             max-width: 420px;
             width: 90%;
+            display: none;
         }
 
         #instructions h3 {
@@ -205,6 +237,8 @@
 </head>
 <body>
     <div id="map"></div>
+
+    <button id="info-btn" title="Show instructions">ℹ️</button>
 
     <div id="controls">
         <button id="draw-btn" class="control-btn" title="Toggle between draw and navigation mode">✏️ Draw Mode</button>
@@ -448,20 +482,19 @@
             }
         });
 
+        // Toggle instructions
+        document.getElementById('info-btn').addEventListener('click', () => {
+            const instructions = document.getElementById('instructions');
+            if (instructions.style.display === 'none' || instructions.style.display === '') {
+                instructions.style.display = 'block';
+            } else {
+                instructions.style.display = 'none';
+            }
+        });
+
         // Close instructions
         document.getElementById('close-instructions').addEventListener('click', () => {
             document.getElementById('instructions').style.display = 'none';
-        });
-
-        // Auto-dismiss instructions on first interaction
-        let firstInteraction = true;
-        map.on('click', () => {
-            if (firstInteraction) {
-                setTimeout(() => {
-                    document.getElementById('instructions').style.display = 'none';
-                }, 2000);
-                firstInteraction = false;
-            }
         });
 
         // Notification helper
