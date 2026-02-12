@@ -21,6 +21,27 @@
             overflow: hidden;
         }
 
+        /* Header styling */
+        #header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            z-index: 1500;
+            padding: 12px 0;
+            text-align: center;
+        }
+
+        #header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+            color: white;
+            letter-spacing: 0.5px;
+        }
+
         /* Map container (full viewport) */
         #map {
             position: absolute;
@@ -89,9 +110,9 @@
         /* Info button styling */
         #info-btn {
             position: absolute;
-            top: 10px;
+            top: 60px;
             right: 10px;
-            z-index: 1000;
+            z-index: 1600;
             background: white;
             border: 2px solid rgba(0, 0, 0, 0.2);
             border-radius: 50%;
@@ -120,10 +141,10 @@
         /* Instruction card styling */
         #instructions {
             position: absolute;
-            top: 10px;
+            top: 60px;
             left: 50%;
             transform: translateX(-50%);
-            z-index: 1000;
+            z-index: 1600;
             background: white;
             border-radius: 8px;
             padding: 20px 24px;
@@ -189,7 +210,7 @@
         /* Notification toast */
         .notification {
             position: fixed;
-            top: 70px;
+            top: 60px;
             left: 50%;
             transform: translateX(-50%);
             background: rgba(0, 0, 0, 0.8);
@@ -214,8 +235,12 @@
 
         /* Responsive adjustments */
         @media (max-width: 768px) {
+            #header h1 {
+                font-size: 20px;
+            }
+
             #instructions {
-                top: 10px;
+                top: 60px;
                 left: 10px;
                 right: 10px;
                 transform: none;
@@ -236,6 +261,10 @@
     </style>
 </head>
 <body>
+    <header id="header">
+        <h1>Trail Tracker</h1>
+    </header>
+
     <div id="map"></div>
 
     <button id="info-btn" title="Show instructions">ℹ️</button>
