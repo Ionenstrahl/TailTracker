@@ -189,7 +189,7 @@
         /* Notification toast */
         .notification {
             position: fixed;
-            bottom: 20px;
+            top: 70px;
             left: 50%;
             transform: translateX(-50%);
             background: rgba(0, 0, 0, 0.8);
@@ -198,13 +198,13 @@
             border-radius: 4px;
             font-size: 14px;
             z-index: 2000;
-            animation: slideUp 0.3s ease;
+            animation: slideDown 0.3s ease;
         }
 
-        @keyframes slideUp {
+        @keyframes slideDown {
             from {
                 opacity: 0;
-                transform: translate(-50%, 10px);
+                transform: translate(-50%, -10px);
             }
             to {
                 opacity: 1;
