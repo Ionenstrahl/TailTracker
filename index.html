@@ -8,9 +8,6 @@
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
-    <!-- Leaflet.PolylineMeasure CSS -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.polylinemeasure@3.0.0/Leaflet.PolylineMeasure.css" />
-
     <style>
         /* Reset and base styles */
         * {
@@ -32,6 +29,11 @@
             width: 100%;
             height: 100vh;
             z-index: 0;
+            cursor: default;
+        }
+
+        #map.drawing-mode {
+            cursor: crosshair;
         }
 
         /* Custom controls styling */
@@ -40,13 +42,16 @@
             top: 10px;
             right: 10px;
             z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
         }
 
-        #undo-btn {
+        .control-btn {
             background: white;
             border: 2px solid rgba(0, 0, 0, 0.2);
             border-radius: 4px;
-            padding: 8px 16px;
+            padding: 10px 16px;
             font-size: 14px;
             font-weight: 600;
             cursor: pointer;
@@ -55,17 +60,29 @@
             display: flex;
             align-items: center;
             gap: 6px;
+            white-space: nowrap;
         }
 
-        #undo-btn:hover {
+        .control-btn:hover {
             background: #f8f9fa;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
             transform: translateY(-1px);
         }
 
-        #undo-btn:active {
+        .control-btn:active {
             transform: translateY(0);
             box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+
+        .control-btn.active {
+            background: #4ECDC4;
+            color: white;
+            border-color: #4ECDC4;
+        }
+
+        .control-btn.active:hover {
+            background: #45B7D1;
+            border-color: #45B7D1;
         }
 
         /* Instruction card styling */
@@ -79,7 +96,7 @@
             border-radius: 8px;
             padding: 20px 24px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            max-width: 400px;
+            max-width: 420px;
             width: 90%;
         }
 
@@ -121,6 +138,19 @@
 
         #close-instructions:hover {
             color: #333;
+        }
+
+        /* Distance label styling */
+        .distance-label {
+            background: white;
+            border: 2px solid #4ECDC4;
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #333;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            white-space: nowrap;
         }
 
         /* Notification toast */
@@ -166,7 +196,7 @@
                 right: 10px;
             }
 
-            #undo-btn {
+            .control-btn {
                 min-width: 44px;
                 min-height: 44px;
             }
@@ -177,25 +207,25 @@
     <div id="map"></div>
 
     <div id="controls">
-        <button id="undo-btn" title="Undo last route">↶ Undo</button>
+        <button id="draw-btn" class="control-btn" title="Toggle drawing mode">✏️ Draw Route</button>
+        <button id="undo-btn" class="control-btn" title="Undo last route">↶ Undo</button>
+        <button id="clear-btn" class="control-btn" title="Clear all routes">🗑️ Clear All</button>
+        <button id="unit-btn" class="control-btn" title="Toggle units">km</button>
     </div>
 
     <div id="instructions" class="card">
         <button id="close-instructions">×</button>
-        <h3>Measure Your Route</h3>
+        <h3>Draw Your Route</h3>
         <ol>
-            <li>Click the ruler icon to start drawing</li>
-            <li>Click along your running/cycling route</li>
-            <li>Double-click to finish the route</li>
-            <li>Click Undo to remove last route</li>
+            <li>Click <strong>"Draw Route"</strong> to start</li>
+            <li><strong>Click and drag</strong> on the map to draw your route</li>
+            <li>Release to finish and see the distance</li>
+            <li>Draw multiple routes with different colors</li>
         </ol>
     </div>
 
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-    <!-- Leaflet.PolylineMeasure JS -->
-    <script src="https://cdn.jsdelivr.net/npm/leaflet.polylinemeasure@3.0.0/Leaflet.PolylineMeasure.js"></script>
 
     <script>
         // Configuration
@@ -203,15 +233,25 @@
             fallbackCenter: [48.7758, 9.1829],  // Stuttgart, Germany
             defaultZoom: 13,
             maxRoutes: 50,
-            routeColors: ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F']
+            routeColors: ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F'],
+            minPointDistance: 10, // Minimum pixels between points (reduces point density)
+            useMetric: true
         };
 
         // State
         let routeHistory = [];
         let colorIndex = 0;
+        let isDrawing = false;
+        let drawingMode = false;
+        let currentPolyline = null;
+        let currentPoints = [];
+        let lastPoint = null;
 
         // Initialize map
-        const map = L.map('map').setView(CONFIG.fallbackCenter, CONFIG.defaultZoom);
+        const map = L.map('map', {
+            zoomControl: true,
+            doubleClickZoom: false
+        }).setView(CONFIG.fallbackCenter, CONFIG.defaultZoom);
 
         // Add OpenStreetMap tiles
         L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -231,31 +271,140 @@
             );
         }
 
-        // Initialize polyline measure control
-        const polylineMeasure = L.control.polylineMeasure({
-            position: 'topleft',
-            unit: 'kilometres',
-            showBearings: false,
-            clearMeasurementsOnStop: false,
-            showClearControl: true,
-            showUnitControl: true,
-            tooltipTextDraganddelete: 'Click to <b>finish line</b>. Drag points to adjust.',
-            tooltipTextResume: 'Click to <b>continue line</b>',
-            tooltipTextAdd: 'Click to <b>start measuring distance</b>'
-        }).addTo(map);
+        // Haversine distance calculation
+        function haversineDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371; // Earth's radius in km
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
 
-        // Track completed routes
-        map.on('polylinemeasure:finish', (e) => {
-            // Apply color
-            e.layer.setStyle({
+        // Calculate total distance for a set of points
+        function calculateDistance(points) {
+            let totalDistance = 0;
+            for (let i = 1; i < points.length; i++) {
+                totalDistance += haversineDistance(
+                    points[i-1].lat, points[i-1].lng,
+                    points[i].lat, points[i].lng
+                );
+            }
+            return totalDistance;
+        }
+
+        // Format distance for display
+        function formatDistance(km) {
+            if (CONFIG.useMetric) {
+                if (km < 1) {
+                    return Math.round(km * 1000) + ' m';
+                }
+                return km.toFixed(2) + ' km';
+            } else {
+                const miles = km * 0.621371;
+                if (miles < 0.1) {
+                    return Math.round(miles * 5280) + ' ft';
+                }
+                return miles.toFixed(2) + ' mi';
+            }
+        }
+
+        // Get distance between two pixel points
+        function pixelDistance(p1, p2) {
+            const dx = p2.x - p1.x;
+            const dy = p2.y - p1.y;
+            return Math.sqrt(dx * dx + dy * dy);
+        }
+
+        // Toggle drawing mode
+        function toggleDrawingMode() {
+            drawingMode = !drawingMode;
+            const drawBtn = document.getElementById('draw-btn');
+            const mapEl = document.getElementById('map');
+
+            if (drawingMode) {
+                drawBtn.classList.add('active');
+                drawBtn.innerHTML = '⏸️ Stop Drawing';
+                mapEl.classList.add('drawing-mode');
+                showNotification('Drawing mode active - drag to draw route');
+            } else {
+                drawBtn.classList.remove('active');
+                drawBtn.innerHTML = '✏️ Draw Route';
+                mapEl.classList.remove('drawing-mode');
+                showNotification('Drawing mode disabled');
+            }
+        }
+
+        // Start drawing
+        function startDrawing(e) {
+            if (!drawingMode) return;
+
+            isDrawing = true;
+            currentPoints = [e.latlng];
+            lastPoint = map.latLngToContainerPoint(e.latlng);
+
+            // Create temporary polyline
+            currentPolyline = L.polyline([e.latlng], {
                 color: CONFIG.routeColors[colorIndex % CONFIG.routeColors.length],
                 weight: 4,
                 opacity: 0.8
-            });
+            }).addTo(map);
 
-            // Add to history
+            // Disable map dragging while drawing
+            map.dragging.disable();
+        }
+
+        // Continue drawing
+        function continueDrawing(e) {
+            if (!isDrawing || !currentPolyline) return;
+
+            const currentPixelPoint = map.latLngToContainerPoint(e.latlng);
+
+            // Only add point if it's far enough from the last point
+            if (!lastPoint || pixelDistance(lastPoint, currentPixelPoint) >= CONFIG.minPointDistance) {
+                currentPoints.push(e.latlng);
+                currentPolyline.setLatLngs(currentPoints);
+                lastPoint = currentPixelPoint;
+            }
+        }
+
+        // Finish drawing
+        function finishDrawing(e) {
+            if (!isDrawing || !currentPolyline) return;
+
+            isDrawing = false;
+            map.dragging.enable();
+
+            // Need at least 2 points for a valid route
+            if (currentPoints.length < 2) {
+                map.removeLayer(currentPolyline);
+                currentPolyline = null;
+                currentPoints = [];
+                lastPoint = null;
+                showNotification('Route too short - drag to draw a route');
+                return;
+            }
+
+            // Calculate distance
+            const distance = calculateDistance(currentPoints);
+
+            // Add distance label at the end of the route
+            const lastLatLng = currentPoints[currentPoints.length - 1];
+            const marker = L.marker(lastLatLng, {
+                icon: L.divIcon({
+                    className: 'distance-label',
+                    html: formatDistance(distance),
+                    iconSize: null
+                })
+            }).addTo(map);
+
+            // Store in history
             routeHistory.push({
-                layer: e.layer,
+                polyline: currentPolyline,
+                marker: marker,
+                distance: distance,
                 id: Date.now()
             });
 
@@ -264,15 +413,46 @@
             // Limit history size
             if (routeHistory.length > CONFIG.maxRoutes) {
                 const oldest = routeHistory.shift();
-                map.removeLayer(oldest.layer);
+                map.removeLayer(oldest.polyline);
+                map.removeLayer(oldest.marker);
+            }
+
+            showNotification('Route saved: ' + formatDistance(distance));
+
+            // Reset for next drawing
+            currentPolyline = null;
+            currentPoints = [];
+            lastPoint = null;
+        }
+
+        // Map event listeners
+        map.on('mousedown', startDrawing);
+        map.on('mousemove', continueDrawing);
+        map.on('mouseup', finishDrawing);
+
+        // Touch support
+        map.on('touchstart', (e) => {
+            if (e.originalEvent.touches.length === 1) {
+                startDrawing(e);
             }
         });
 
-        // Undo functionality
+        map.on('touchmove', (e) => {
+            if (e.originalEvent.touches.length === 1) {
+                continueDrawing(e);
+            }
+        });
+
+        map.on('touchend', finishDrawing);
+
+        // Button event listeners
+        document.getElementById('draw-btn').addEventListener('click', toggleDrawingMode);
+
         document.getElementById('undo-btn').addEventListener('click', () => {
             if (routeHistory.length > 0) {
                 const lastRoute = routeHistory.pop();
-                map.removeLayer(lastRoute.layer);
+                map.removeLayer(lastRoute.polyline);
+                map.removeLayer(lastRoute.marker);
                 colorIndex = Math.max(0, colorIndex - 1);
                 showNotification('Route removed');
             } else {
@@ -280,12 +460,40 @@
             }
         });
 
+        document.getElementById('clear-btn').addEventListener('click', () => {
+            if (routeHistory.length === 0) {
+                showNotification('No routes to clear');
+                return;
+            }
+
+            routeHistory.forEach(route => {
+                map.removeLayer(route.polyline);
+                map.removeLayer(route.marker);
+            });
+            routeHistory = [];
+            colorIndex = 0;
+            showNotification('All routes cleared');
+        });
+
+        document.getElementById('unit-btn').addEventListener('click', () => {
+            CONFIG.useMetric = !CONFIG.useMetric;
+            const btn = document.getElementById('unit-btn');
+            btn.textContent = CONFIG.useMetric ? 'km' : 'mi';
+
+            // Update all existing distance labels
+            routeHistory.forEach(route => {
+                route.marker.getElement().textContent = formatDistance(route.distance);
+            });
+
+            showNotification('Units changed to ' + (CONFIG.useMetric ? 'metric' : 'imperial'));
+        });
+
         // Close instructions
         document.getElementById('close-instructions').addEventListener('click', () => {
             document.getElementById('instructions').style.display = 'none';
         });
 
-        // Auto-dismiss instructions on first map interaction
+        // Auto-dismiss instructions on first interaction
         let firstInteraction = true;
         map.on('click', () => {
             if (firstInteraction) {
@@ -304,6 +512,13 @@
             document.body.appendChild(notification);
             setTimeout(() => notification.remove(), 2000);
         }
+
+        // Prevent context menu on long press (mobile)
+        document.getElementById('map').addEventListener('contextmenu', (e) => {
+            if (drawingMode) {
+                e.preventDefault();
+            }
+        });
     </script>
 </body>
 </html>
