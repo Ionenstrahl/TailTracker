@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Route Distance Calculator</title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <!-- Leaflet.PolylineMeasure CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.polylinemeasure@3.0.0/Leaflet.PolylineMeasure.css" />
+
+    <style>
+        /* Reset and base styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            overflow: hidden;
+        }
+
+        /* Map container (full viewport) */
+        #map {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            z-index: 0;
+        }
+
+        /* Custom controls styling */
+        #controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+        }
+
+        #undo-btn {
+            background: white;
+            border: 2px solid rgba(0, 0, 0, 0.2);
+            border-radius: 4px;
+            padding: 8px 16px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        #undo-btn:hover {
+            background: #f8f9fa;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+            transform: translateY(-1px);
+        }
+
+        #undo-btn:active {
+            transform: translateY(0);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Instruction card styling */
+        #instructions {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            background: white;
+            border-radius: 8px;
+            padding: 20px 24px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            max-width: 400px;
+            width: 90%;
+        }
+
+        #instructions h3 {
+            margin: 0 0 12px 0;
+            font-size: 18px;
+            color: #333;
+        }
+
+        #instructions ol {
+            margin: 0;
+            padding-left: 20px;
+            color: #555;
+            line-height: 1.6;
+        }
+
+        #instructions li {
+            margin-bottom: 6px;
+        }
+
+        #close-instructions {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: #999;
+            cursor: pointer;
+            line-height: 1;
+            padding: 0;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: color 0.2s ease;
+        }
+
+        #close-instructions:hover {
+            color: #333;
+        }
+
+        /* Notification toast */
+        .notification {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 4px;
+            font-size: 14px;
+            z-index: 2000;
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translate(-50%, 10px);
+            }
+            to {
+                opacity: 1;
+                transform: translate(-50%, 0);
+            }
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            #instructions {
+                top: auto;
+                bottom: 20px;
+                left: 10px;
+                right: 10px;
+                transform: none;
+                width: auto;
+                max-width: none;
+            }
+
+            #controls {
+                top: 70px;
+                right: 10px;
+            }
+
+            #undo-btn {
+                min-width: 44px;
+                min-height: 44px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+
+    <div id="controls">
+        <button id="undo-btn" title="Undo last route">↶ Undo</button>
+    </div>
+
+    <div id="instructions" class="card">
+        <button id="close-instructions">×</button>
+        <h3>Measure Your Route</h3>
+        <ol>
+            <li>Click the ruler icon to start drawing</li>
+            <li>Click along your running/cycling route</li>
+            <li>Double-click to finish the route</li>
+            <li>Click Undo to remove last route</li>
+        </ol>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Leaflet.PolylineMeasure JS -->
+    <script src="https://cdn.jsdelivr.net/npm/leaflet.polylinemeasure@3.0.0/Leaflet.PolylineMeasure.js"></script>
+
+    <script>
+        // Configuration
+        const CONFIG = {
+            fallbackCenter: [48.2082, 16.3738],  // Vienna, Austria
+            defaultZoom: 13,
+            maxRoutes: 50,
+            routeColors: ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F']
+        };
+
+        // State
+        let routeHistory = [];
+        let colorIndex = 0;
+
+        // Initialize map
+        const map = L.map('map').setView(CONFIG.fallbackCenter, CONFIG.defaultZoom);
+
+        // Add OpenStreetMap tiles
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            maxZoom: 19
+        }).addTo(map);
+
+        // Try to get user's current location
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    map.setView([position.coords.latitude, position.coords.longitude], CONFIG.defaultZoom);
+                },
+                (error) => {
+                    console.log('Geolocation unavailable, using fallback location');
+                }
+            );
+        }
+
+        // Initialize polyline measure control
+        const polylineMeasure = L.control.polylineMeasure({
+            position: 'topleft',
+            unit: 'kilometres',
+            showBearings: false,
+            clearMeasurementsOnStop: false,
+            showClearControl: true,
+            showUnitControl: true,
+            tooltipTextDraganddelete: 'Click to <b>finish line</b>. Drag points to adjust.',
+            tooltipTextResume: 'Click to <b>continue line</b>',
+            tooltipTextAdd: 'Click to <b>start measuring distance</b>'
+        }).addTo(map);
+
+        // Track completed routes
+        map.on('polylinemeasure:finish', (e) => {
+            // Apply color
+            e.layer.setStyle({
+                color: CONFIG.routeColors[colorIndex % CONFIG.routeColors.length],
+                weight: 4,
+                opacity: 0.8
+            });
+
+            // Add to history
+            routeHistory.push({
+                layer: e.layer,
+                id: Date.now()
+            });
+
+            colorIndex++;
+
+            // Limit history size
+            if (routeHistory.length > CONFIG.maxRoutes) {
+                const oldest = routeHistory.shift();
+                map.removeLayer(oldest.layer);
+            }
+        });
+
+        // Undo functionality
+        document.getElementById('undo-btn').addEventListener('click', () => {
+            if (routeHistory.length > 0) {
+                const lastRoute = routeHistory.pop();
+                map.removeLayer(lastRoute.layer);
+                colorIndex = Math.max(0, colorIndex - 1);
+                showNotification('Route removed');
+            } else {
+                showNotification('Nothing to undo');
+            }
+        });
+
+        // Close instructions
+        document.getElementById('close-instructions').addEventListener('click', () => {
+            document.getElementById('instructions').style.display = 'none';
+        });
+
+        // Auto-dismiss instructions on first map interaction
+        let firstInteraction = true;
+        map.on('click', () => {
+            if (firstInteraction) {
+                setTimeout(() => {
+                    document.getElementById('instructions').style.display = 'none';
+                }, 2000);
+                firstInteraction = false;
+            }
+        });
+
+        // Notification helper
+        function showNotification(message) {
+            const notification = document.createElement('div');
+            notification.className = 'notification';
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            setTimeout(() => notification.remove(), 2000);
+        }
+    </script>
+</body>
+</html>
