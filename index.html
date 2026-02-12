@@ -207,19 +207,17 @@
     <div id="map"></div>
 
     <div id="controls">
-        <button id="draw-btn" class="control-btn" title="Toggle drawing mode">✏️ Draw Route</button>
+        <button id="draw-btn" class="control-btn" title="Toggle between draw and navigation mode">✏️ Draw Mode</button>
         <button id="undo-btn" class="control-btn" title="Undo last route">↶ Undo</button>
-        <button id="clear-btn" class="control-btn" title="Clear all routes">🗑️ Clear All</button>
     </div>
 
     <div id="instructions" class="card">
         <button id="close-instructions">×</button>
-        <h3>Draw Your Route</h3>
+        <h3>Two Modes</h3>
         <ol>
-            <li>Click <strong>"Draw Route"</strong> to start</li>
-            <li><strong>Click and drag</strong> on the map to draw your route</li>
-            <li>Release to finish and see the distance</li>
-            <li>Draw multiple routes with different colors</li>
+            <li><strong>Navigation Mode</strong>: Drag to move the map</li>
+            <li><strong>Draw Mode</strong>: Tap the button, then drag to draw routes</li>
+            <li>Switch back to navigate or undo the last route</li>
         </ol>
     </div>
 
@@ -316,14 +314,14 @@
 
             if (drawingMode) {
                 drawBtn.classList.add('active');
-                drawBtn.innerHTML = '⏸️ Stop Drawing';
+                drawBtn.innerHTML = '🗺️ Navigate';
                 mapEl.classList.add('drawing-mode');
-                showNotification('Drawing mode active - drag to draw route');
+                showNotification('Draw Mode: Drag to draw routes');
             } else {
                 drawBtn.classList.remove('active');
-                drawBtn.innerHTML = '✏️ Draw Route';
+                drawBtn.innerHTML = '✏️ Draw Mode';
                 mapEl.classList.remove('drawing-mode');
-                showNotification('Drawing mode disabled');
+                showNotification('Navigate Mode: Drag to move map');
             }
         }
 
@@ -449,22 +447,6 @@
                 showNotification('Nothing to undo');
             }
         });
-
-        document.getElementById('clear-btn').addEventListener('click', () => {
-            if (routeHistory.length === 0) {
-                showNotification('No routes to clear');
-                return;
-            }
-
-            routeHistory.forEach(route => {
-                map.removeLayer(route.polyline);
-                map.removeLayer(route.marker);
-            });
-            routeHistory = [];
-            colorIndex = 0;
-            showNotification('All routes cleared');
-        });
-
 
         // Close instructions
         document.getElementById('close-instructions').addEventListener('click', () => {
