@@ -210,7 +210,6 @@
         <button id="draw-btn" class="control-btn" title="Toggle drawing mode">✏️ Draw Route</button>
         <button id="undo-btn" class="control-btn" title="Undo last route">↶ Undo</button>
         <button id="clear-btn" class="control-btn" title="Clear all routes">🗑️ Clear All</button>
-        <button id="unit-btn" class="control-btn" title="Toggle units">km</button>
     </div>
 
     <div id="instructions" class="card">
@@ -234,8 +233,7 @@
             defaultZoom: 13,
             maxRoutes: 50,
             routeColors: ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F'],
-            minPointDistance: 10, // Minimum pixels between points (reduces point density)
-            useMetric: true
+            minPointDistance: 10 // Minimum pixels between points (reduces point density)
         };
 
         // State
@@ -295,20 +293,12 @@
             return totalDistance;
         }
 
-        // Format distance for display
+        // Format distance for display (metric only)
         function formatDistance(km) {
-            if (CONFIG.useMetric) {
-                if (km < 1) {
-                    return Math.round(km * 1000) + ' m';
-                }
-                return km.toFixed(2) + ' km';
-            } else {
-                const miles = km * 0.621371;
-                if (miles < 0.1) {
-                    return Math.round(miles * 5280) + ' ft';
-                }
-                return miles.toFixed(2) + ' mi';
+            if (km < 1) {
+                return Math.round(km * 1000) + ' m';
             }
+            return km.toFixed(2) + ' km';
         }
 
         // Get distance between two pixel points
@@ -475,18 +465,6 @@
             showNotification('All routes cleared');
         });
 
-        document.getElementById('unit-btn').addEventListener('click', () => {
-            CONFIG.useMetric = !CONFIG.useMetric;
-            const btn = document.getElementById('unit-btn');
-            btn.textContent = CONFIG.useMetric ? 'km' : 'mi';
-
-            // Update all existing distance labels
-            routeHistory.forEach(route => {
-                route.marker.getElement().textContent = formatDistance(route.distance);
-            });
-
-            showNotification('Units changed to ' + (CONFIG.useMetric ? 'metric' : 'imperial'));
-        });
 
         // Close instructions
         document.getElementById('close-instructions').addEventListener('click', () => {
