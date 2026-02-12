@@ -23,7 +23,7 @@ A lightweight web app for measuring running and cycling route distances on inter
 
 ## Live Demo
 
-Visit: https://[your-username].github.io/ki-map-measure/
+Visit: https://ionenstrahl.github.io/TailTracker/
 
 ## Technology
 
